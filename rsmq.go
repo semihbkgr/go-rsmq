@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// RedisSMQ client
 type RedisSMQ struct {
 	pool                        *redis.Pool
 	config                      *RedisSMQConfig
@@ -15,6 +16,7 @@ type RedisSMQ struct {
 	changeMessageVisibilitySha1 string
 }
 
+// RedisSMQConfig config
 type RedisSMQConfig struct {
 	host     string
 	port     int
@@ -26,6 +28,7 @@ type RedisSMQConfig struct {
 	ssl      bool
 }
 
+// NewRedisSMQ return new client
 func NewRedisSMQ(config *RedisSMQConfig) (rsmq *RedisSMQ, err error) {
 	rsmq = &RedisSMQ{
 		config: config,
@@ -51,7 +54,7 @@ func NewRedisSMQ(config *RedisSMQConfig) (rsmq *RedisSMQ, err error) {
 			}
 		}
 		if rsmq != nil {
-			_ = rsmq.quit()
+			_ = rsmq.Quit()
 		}
 	}()
 	conn := rsmq.pool.Get()
@@ -64,10 +67,12 @@ func NewRedisSMQ(config *RedisSMQConfig) (rsmq *RedisSMQ, err error) {
 	return
 }
 
+// NewDefaultRedisSMQ returns new client by default config
 func NewDefaultRedisSMQ() (*RedisSMQ, error) {
 	return NewRedisSMQ(NewDefaultRedisSMQConfig())
 }
 
+//NewDefaultRedisSMQConfig return default config
 func NewDefaultRedisSMQConfig() *RedisSMQConfig {
 	return &RedisSMQConfig{
 		host:    "localhost",
@@ -78,7 +83,8 @@ func NewDefaultRedisSMQConfig() *RedisSMQConfig {
 	}
 }
 
-func (rsmq *RedisSMQ) quit() error {
+// Quit close client
+func (rsmq *RedisSMQ) Quit() error {
 	if rsmq.pool != nil {
 		return rsmq.pool.Close()
 	}
