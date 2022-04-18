@@ -2,10 +2,11 @@ package rsmq
 
 import (
 	"context"
+	"github.com/go-redis/redis"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
 	"testing"
-	"time"
 )
 
 type redisContainer struct {
@@ -41,13 +42,6 @@ func setupRedis(ctx context.Context) (*redisContainer, error) {
 	return &redisContainer{Container: container, host: hostIP, port: mappedPort.Int()}, nil
 }
 
-func TestNewDefaultRedisSMQConfig(t *testing.T) {
-	config := NewDefaultRedisSMQConfig()
-	if config == nil {
-		t.Fatal("config is nil")
-	}
-}
-
 func TestNewRedisSMQ(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
@@ -61,31 +55,20 @@ func TestNewRedisSMQ(t *testing.T) {
 
 	defer rc.Container.Terminate(ctx)
 
-	config := RedisSMQConfig{
-		host:    rc.host,
-		port:    rc.port,
-		timeout: 5 * time.Second,
-	}
-	rsmq, err := NewRedisSMQ(&config)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	rsmq := NewRedisSMQ(client, "test-que")
 	if rsmq == nil {
 		t.Fatal("rsmq cannot be nil")
 	}
-	if rsmq.pool == nil {
+	if rsmq.client == nil {
 		t.Error("rsmq.pool cannot be nil")
 	}
-	if rsmq.config == nil {
+	if rsmq.namespace == "" {
 		t.Error("rsmq.config cannot be nil")
-	}
-	if rsmq.popMessageSha1 == "" {
-		t.Error("rsmq.popMessageSha1 cannot be empty")
-	}
-	if rsmq.receiveMessageSha1 == "" {
-		t.Error("rsmq.receiveMessageSha1 cannot be empty")
-	}
-	if rsmq.changeMessageVisibilitySha1 == "" {
-		t.Error("rsmq.changeMessageVisibilitySha1 cannot be empty")
 	}
 }

@@ -1,105 +1,40 @@
 package rsmq
 
 import (
-	"errors"
-	"fmt"
-	"github.com/gomodule/redigo/redis"
-	"time"
+	"github.com/go-redis/redis"
 )
+
+var hashPopMessage = redis.NewScript(scriptPopMessage).Hash()
+var hashReceiveMessage = redis.NewScript(scriptReceiveMessage).Hash()
+var hashChangeMessageVisibility = redis.NewScript(scriptChangeMessageVisibility).Hash()
 
 // RedisSMQ client
 type RedisSMQ struct {
-	pool                        *redis.Pool
-	config                      *RedisSMQConfig
-	popMessageSha1              string
-	receiveMessageSha1          string
-	changeMessageVisibilitySha1 string
+	client    *redis.Client
+	namespace string
 }
 
-// RedisSMQConfig config
-type RedisSMQConfig struct {
-	host     string
-	port     int
-	timeout  time.Duration
-	database string
-	ns       string
-	password string
-	redisns  string
-	ssl      bool
+type queueDescriptor struct {
+	qname   string
+	vt      int
+	delay   int
+	maxSize int
+	ts      int64
+	uid     string
 }
 
 // NewRedisSMQ return new client
-func NewRedisSMQ(config *RedisSMQConfig) (rsmq *RedisSMQ, err error) {
-	rsmq = &RedisSMQ{
-		config: config,
-		pool: &redis.Pool{
-			MaxIdle:   128,
-			MaxActive: 128,
-			Dial: func() (redis.Conn, error) {
-				address := redisAddress(config.host, config.port)
-				timeout := redis.DialConnectTimeout(config.timeout)
-				password := redis.DialPassword(config.password)
-				return redis.Dial("tcp", address, timeout, password)
-			},
-		},
-	}
-	defer func() {
-		rec := recover()
-		if rec != nil {
-			switch tRec := rec.(type) {
-			case error:
-				err = tRec
-			default:
-				err = errors.New("unknown error")
-			}
-		}
-		if rsmq != nil {
-			_ = rsmq.Quit()
-		}
-	}()
-	conn := rsmq.pool.Get()
-	if connErr := conn.Err(); connErr != nil {
-		panic(connErr)
-	}
-	rsmq.popMessageSha1 = loadScript(conn, scriptPopMessage)
-	rsmq.receiveMessageSha1 = loadScript(conn, scriptReceiveMessage)
-	rsmq.changeMessageVisibilitySha1 = loadScript(conn, scriptChangeMessageVisibility)
-	return
-}
+func NewRedisSMQ(client *redis.Client, namespace string) *RedisSMQ {
+	verifyNamespace(&namespace)
 
-// NewDefaultRedisSMQ returns new client by default config
-func NewDefaultRedisSMQ() (*RedisSMQ, error) {
-	return NewRedisSMQ(NewDefaultRedisSMQConfig())
-}
-
-//NewDefaultRedisSMQConfig return default config
-func NewDefaultRedisSMQConfig() *RedisSMQConfig {
-	return &RedisSMQConfig{
-		host:    "localhost",
-		port:    6379,
-		timeout: 5 * time.Second,
-		ns:      "rsmq",
-		ssl:     false,
+	rsmq := &RedisSMQ{
+		client:    client,
+		namespace: namespace,
 	}
-}
 
-// Quit close client
-func (rsmq *RedisSMQ) Quit() error {
-	if rsmq.pool != nil {
-		return rsmq.pool.Close()
-	}
-	return errors.New("redis pool is nil")
-}
+	client.ScriptLoad(scriptPopMessage)
+	client.ScriptLoad(scriptReceiveMessage)
+	client.ScriptLoad(scriptChangeMessageVisibility)
 
-func redisAddress(host string, port int) string {
-	return fmt.Sprintf("%s:%d", host, port)
-}
-
-func loadScript(conn redis.Conn, script string) string {
-	s := redis.NewScript(0, script)
-	err := s.Load(conn)
-	if err != nil {
-		panic(err)
-	}
-	return s.Hash()
+	return rsmq
 }
