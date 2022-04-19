@@ -21,21 +21,21 @@ func validateQname(val string) error {
 	return nil
 }
 
-func validateVt(val uint64) error {
+func validateVt(val uint) error {
 	if val > 9999999 {
 		return ErrInvalidVt
 	}
 	return nil
 }
 
-func validateDelay(val uint64) error {
+func validateDelay(val uint) error {
 	if val > 9999999 {
 		return ErrInvalidDelay
 	}
 	return nil
 }
 
-func validateMaxsize(val int64) error {
+func validateMaxsize(val int) error {
 	if val != -1 && (val < 1024 || val > 65536) {
 		return ErrInvalidMaxsize
 	}

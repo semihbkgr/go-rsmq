@@ -74,4 +74,6 @@ func TestNewRedisSMQ(t *testing.T) {
 
 	rsmq.CreateQueue("test", 30, 0, 65535)
 
+	rsmq.GetQueueAttributes("test")
+
 }
