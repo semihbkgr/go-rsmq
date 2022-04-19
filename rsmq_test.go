@@ -251,3 +251,201 @@ func TestRedisSMQ_DeleteQueue(t *testing.T) {
 	}
 
 }
+
+func TestRedisSMQ_SendMessage(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 100, 1024)
+
+	message := "message"
+
+	_, err = rsmq.SendMessage(qname, message, 300)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func TestRedisSMQ_ReceiveMessage(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 0, 1024)
+
+	message := "message"
+
+	id, _ := rsmq.SendMessage(qname, message, 0)
+
+	queMsg, err := rsmq.ReceiveMessage(qname, 0)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if queMsg == nil {
+		t.Fatal("queue message is nil")
+	}
+	if queMsg.id != id {
+		t.Error("id is not as expected")
+	}
+	if queMsg.message != message {
+		t.Error("message is not as expected")
+	}
+
+}
+
+func TestRedisSMQ_PopMessage(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 0, 1024)
+
+	message := "message"
+
+	id, _ := rsmq.SendMessage(qname, message, 0)
+
+	queMsg, err := rsmq.PopMessage(qname)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if queMsg == nil {
+		t.Fatal("queue message is nil")
+	}
+	if queMsg.id != id {
+		t.Error("id is not as expected")
+	}
+	if queMsg.message != message {
+		t.Error("message is not as expected")
+	}
+
+}
+
+func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 0, 1024)
+
+	message := "message"
+
+	id, _ := rsmq.SendMessage(qname, message, 0)
+
+	err = rsmq.ChangeMessageVisibility(qname, id, 90)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func TestRedisSMQ_DeleteMessage(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 0, 0, 1024)
+
+	message := "message"
+
+	id, _ := rsmq.SendMessage(qname, message, 0)
+
+	err = rsmq.DeleteMessage(qname, id)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}

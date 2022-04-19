@@ -2,7 +2,6 @@ package rsmq
 
 import (
 	"github.com/go-redis/redis"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
@@ -281,7 +280,7 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 
 	randUid := ""
 	if uid {
-		randUid = uuid.NewString()
+		randUid = strconv.FormatInt(t.UnixMilli(), 36) + makeId(22)
 	}
 
 	return &queueDef{

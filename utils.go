@@ -2,7 +2,9 @@ package rsmq
 
 import (
 	"errors"
+	"math/rand"
 	"strconv"
+	"strings"
 )
 
 type signed interface {
@@ -13,8 +15,12 @@ type unsigned interface {
 	uint | uint64
 }
 
-func toSigned[num signed](v any) (n num, err error) {
+func toSigned[num signed](v any) (num, error) {
 	switch val := v.(type) {
+	case int:
+		return num(val), nil
+	case int64:
+		return num(val), nil
 	case string:
 		r, err := strconv.ParseInt(val, 10, 0)
 		return num(r), err
@@ -24,8 +30,16 @@ func toSigned[num signed](v any) (n num, err error) {
 	}
 }
 
-func toUnsigned[num unsigned](v any) (n num, err error) {
+func toUnsigned[num unsigned](v any) (num, error) {
 	switch val := v.(type) {
+	case uint:
+		return num(val), nil
+	case uint64:
+		return num(val), nil
+	case int:
+		return num(val), nil
+	case int64:
+		return num(val), nil
 	case string:
 		r, err := strconv.ParseUint(val, 10, 0)
 		return num(r), err
@@ -51,4 +65,18 @@ func toUnsignedOrDef[num unsigned](v any, def num) num {
 		return def
 	}
 	return n
+}
+
+const idLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+func makeId(l int) string {
+	if l <= 0 {
+		return ""
+	}
+	sb := strings.Builder{}
+	length := len(idLetters)
+	for i := 0; i < l; i++ {
+		sb.WriteByte(idLetters[rand.Int()%length])
+	}
+	return sb.String()
 }
