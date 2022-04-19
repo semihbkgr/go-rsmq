@@ -69,7 +69,7 @@ func toUnsignedOrDef[num unsigned](v any, def num) num {
 
 const idLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-func makeId(l int) string {
+func makeID(l int) string {
 	if l <= 0 {
 		return ""
 	}

@@ -14,6 +14,7 @@ const (
 	defaultNs = "rsmq"
 )
 
+// Queue and message errors
 var (
 	ErrQueueNotFound   = errors.New("queue not found")
 	ErrQueueExists     = errors.New("queue exists")
@@ -33,6 +34,7 @@ type RedisSMQ struct {
 	ns     string
 }
 
+// QueueAttributes queue attributes
 type QueueAttributes struct {
 	Vt         uint
 	Delay      uint
@@ -54,6 +56,7 @@ type queueDef struct {
 	qname   string
 }
 
+// QueueMessage queue message
 type QueueMessage struct {
 	id      string
 	message string
@@ -278,9 +281,9 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 
 	t := timeCmd.Val()
 
-	randUid := ""
+	randUID := ""
 	if uid {
-		randUid = strconv.FormatInt(t.UnixMilli(), 36) + makeId(22)
+		randUID = strconv.FormatInt(t.UnixNano()/1000, 36) + makeID(22)
 	}
 
 	return &queueDef{
@@ -288,10 +291,11 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 		delay:   delay,
 		maxsize: maxsize,
 		ts:      uint64(t.UnixMilli()),
-		uid:     randUid,
+		uid:     randUID,
 	}, nil
 }
 
+// SendMessage send message
 func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (string, error) {
 	if err := validateQname(qname); err != nil {
 		return "", err
@@ -326,6 +330,7 @@ func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (str
 	return queue.uid, nil
 }
 
+// ReceiveMessage receive message
 func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -349,6 +354,7 @@ func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, erro
 	return rsmq.createQueueMessage(evalCmd)
 }
 
+// PopMessage pop message
 func (rsmq *RedisSMQ) PopMessage(qname string) (*QueueMessage, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -407,12 +413,14 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 
 }
 
+// ChangeMessageVisibility changes message visibility
 func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) error {
 	if err := validateQname(qname); err != nil {
 		return err
 	}
-
-	// todo validate message id
+	if err := validateID(id); err != nil {
+		return err
+	}
 
 	queue, err := rsmq.getQueue(qname, false)
 	if err != nil {
@@ -432,19 +440,20 @@ func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) 
 	return nil
 }
 
+// DeleteMessage delete message
 func (rsmq *RedisSMQ) DeleteMessage(qname string, id string) error {
 	if err := validateQname(qname); err != nil {
 		return err
 	}
-
-	// todo validate message id
+	if err := validateID(id); err != nil {
+		return err
+	}
 
 	key := rsmq.ns + qname
 
 	tx := rsmq.client.TxPipeline()
-
 	zremIntCmd := tx.ZRem(key, id)
-	hdelIntCmd := tx.HDel(key+q, id+":rc", id+":fr")
+	hdelIntCmd := tx.HDel(key+q, id, id+":rc", id+":fr")
 	if _, err := tx.Exec(); err != nil {
 		return err
 	}
