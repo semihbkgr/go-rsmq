@@ -140,31 +140,27 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 
 	hmGetValues := hmGetSliceCmd.Val()
 
-	vt, err := strToUint(hmGetValues[0])
+	vt, err := toUnsigned[uint](hmGetValues[0])
 	if err != nil {
 		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
 	}
-	delay, err := strToUint(hmGetValues[1])
+	delay, err := toUnsigned[uint](hmGetValues[1])
 	if err != nil {
 		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
 	}
-	maxsize, err := strToInt(hmGetValues[2])
+	maxsize, err := toSigned[int](hmGetValues[2])
 	if err != nil {
 		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
 	}
-	totalRecv, err := strToUint64OrDef(hmGetValues[3], 0)
-	if err != nil {
-		return nil, errors.Wrapf(err, "total retrieve: %v", hmGetValues[3])
-	}
-	totalSent, err := strToUint64OrDef(hmGetValues[4], 0)
-	if err != nil {
-		return nil, errors.Wrapf(err, "total sent: %v", hmGetValues[4])
-	}
-	created, err := strToUint64(hmGetValues[5])
+	totalRecv := toUnsignedOrDef[uint64](hmGetValues[3], 0)
+
+	totalSent := toUnsignedOrDef[uint64](hmGetValues[4], 0)
+
+	created, err := toUnsigned[uint64](hmGetValues[5])
 	if err != nil {
 		return nil, errors.Wrapf(err, "created: %v", hmGetValues[5])
 	}
-	modified, err := strToUint64(hmGetValues[6])
+	modified, err := toUnsigned[uint64](hmGetValues[6])
 	if err != nil {
 		return nil, errors.Wrapf(err, "modified: %v", hmGetValues[6])
 	}
@@ -257,15 +253,15 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 	if hmGetValues[0] == nil || hmGetValues[1] == nil || hmGetValues[2] == nil {
 		return nil, errors.New("")
 	}
-	vt, err := strToUint(hmGetValues[0])
+	vt, err := toUnsigned[uint](hmGetValues[0])
 	if err != nil {
 		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
 	}
-	delay, err := strToUint(hmGetValues[1])
+	delay, err := toUnsigned[uint](hmGetValues[1])
 	if err != nil {
 		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
 	}
-	maxsize, err := strToInt(hmGetValues[2])
+	maxsize, err := toSigned[int](hmGetValues[2])
 	if err != nil {
 		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
 	}

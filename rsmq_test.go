@@ -3,10 +3,12 @@ package rsmq
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/go-redis/redis"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
 	"testing"
 )
 
@@ -45,6 +47,7 @@ func setupRedis(ctx context.Context) (*redisContainer, error) {
 }
 
 func TestNewRedisSMQ(t *testing.T) {
+
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -61,19 +64,190 @@ func TestNewRedisSMQ(t *testing.T) {
 		Addr: rc.address,
 	})
 
-	rsmq := NewRedisSMQ(client, "test-que")
+	ns := "test"
+
+	rsmq := NewRedisSMQ(client, ns)
+
 	if rsmq == nil {
-		t.Fatal("rsmq cannot be nil")
+		t.Fatal("rsmq is nil")
 	}
 	if rsmq.client == nil {
-		t.Error("rsmq.pool cannot be nil")
+		t.Error("client is nil")
 	}
-	if rsmq.ns == "" {
-		t.Error("rsmq.config cannot be nil")
+	if !strings.HasPrefix(rsmq.ns, ns) {
+		t.Error("ns is not as excepted")
 	}
 
-	rsmq.CreateQueue("test", 30, 0, 65535)
+}
 
-	rsmq.GetQueueAttributes("test")
+func TestRedisSMQ_CreateQueue(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	err = rsmq.CreateQueue("queue", 300, 100, 1024)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func TestRedisSMQ_ListQueues(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 100, 1024)
+
+	queues, err := rsmq.ListQueues()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(queues) != 1 {
+		t.Error("length of queues is not as expected")
+	}
+
+	if queues[0] != qname {
+		t.Error("queue name is not as expected")
+	}
+
+}
+
+func TestRedisSMQ_GetQueueAttributes(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 100, 1024)
+
+	queAttrib, err := rsmq.GetQueueAttributes(qname)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if queAttrib == nil {
+		t.Fatal("queue attributes is nil")
+	}
+
+}
+
+func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 100, 1024)
+
+	queAttrib, err := rsmq.SetQueueAttributes(qname, 600, 200, 2048)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if queAttrib == nil {
+		t.Fatal("queue attributes is nil")
+	}
+
+}
+
+func TestRedisSMQ_DeleteQueue(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	rc, err := setupRedis(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Container.Terminate(ctx)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: rc.address,
+	})
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	qname := "queue"
+
+	rsmq.CreateQueue(qname, 300, 100, 1024)
+
+	err = rsmq.DeleteQueue(qname)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 }
