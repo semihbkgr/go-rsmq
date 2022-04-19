@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -15,8 +16,10 @@ const (
 )
 
 var (
-	ErrQueueNotFound = errors.New("queue not found")
-	ErrQueueExists   = errors.New("queue exists")
+	ErrQueueNotFound   = errors.New("queue not found")
+	ErrQueueExists     = errors.New("queue exists")
+	ErrMessageTooLong  = errors.New("message too long")
+	ErrMessageNotFound = errors.New("message not found")
 )
 
 var (
@@ -50,6 +53,14 @@ type queueDef struct {
 	ts      uint64
 	uid     string
 	qname   string
+}
+
+type QueueMessage struct {
+	id      string
+	message string
+	rc      uint64
+	fr      time.Time
+	sent    time.Time
 }
 
 // NewRedisSMQ return new client
@@ -280,4 +291,168 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 		ts:      uint64(t.UnixMilli()),
 		uid:     randUid,
 	}, nil
+}
+
+func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (string, error) {
+	if err := validateQname(qname); err != nil {
+		return "", err
+	}
+	if err := validateDelay(delay); err != nil {
+		return "", err
+	}
+
+	queue, err := rsmq.getQueue(qname, true)
+
+	if err != nil {
+		return "", err
+	}
+
+	if queue.maxsize != -1 && len(message) > queue.maxsize {
+		return "", ErrMessageTooLong
+	}
+
+	key := rsmq.ns + qname
+
+	tx := rsmq.client.TxPipeline()
+
+	tx.ZAdd(key, redis.Z{
+		Score:  float64(queue.ts + uint64(delay)*1000),
+		Member: queue.uid,
+	})
+	tx.HSet(key+q, queue.uid, message)
+	tx.HIncrBy(key+q, "totalsent", 1)
+	if _, err := tx.Exec(); err != nil {
+		return "", err
+	}
+	return queue.uid, nil
+}
+
+func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, error) {
+	if err := validateQname(qname); err != nil {
+		return nil, err
+	}
+	if err := validateVt(vt); err != nil {
+		return nil, err
+	}
+
+	queue, err := rsmq.getQueue(qname, true)
+
+	if err != nil {
+		return nil, err
+	}
+
+	key := rsmq.ns + qname
+
+	qvt := strconv.FormatUint(queue.ts+uint64(vt)*1000, 10)
+	ct := strconv.FormatUint(queue.ts, 10)
+
+	evalCmd := rsmq.client.EvalSha(hashReceiveMessage, []string{key, ct, qvt})
+	return rsmq.createQueueMessage(evalCmd)
+}
+
+func (rsmq *RedisSMQ) PopMessage(qname string) (*QueueMessage, error) {
+	if err := validateQname(qname); err != nil {
+		return nil, err
+	}
+
+	queue, err := rsmq.getQueue(qname, false)
+	if err != nil {
+		return nil, err
+	}
+
+	key := rsmq.ns + qname
+
+	t := strconv.FormatUint(queue.ts, 10)
+
+	evalCmd := rsmq.client.EvalSha(hashPopMessage, []string{key, t})
+	return rsmq.createQueueMessage(evalCmd)
+
+}
+
+func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) {
+	vals, ok := cmd.Val().([]any)
+	if !ok {
+		return nil, errors.New("mismatched message response type")
+	}
+	if len(vals) < 4 {
+		return nil, errors.New("missing fields in message response")
+	}
+	id, err := toString(vals[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "id: %v", vals[0])
+	}
+	message, err := toString(vals[1])
+	if err != nil {
+		return nil, errors.Wrapf(err, "message: %v", vals[1])
+	}
+	rc, err := toUnsigned[uint64](vals[2])
+	if err != nil {
+		return nil, errors.Wrapf(err, "received count: %v", vals[2])
+	}
+	fr, err := toSigned[int64](vals[3])
+	if err != nil {
+		return nil, errors.Wrapf(err, "first received at: %v", vals[3])
+	}
+	sent, err := strconv.ParseInt(id[0:10], 36, 64)
+	if err != nil {
+		return nil, errors.New("cannot parse sent time from id")
+	}
+
+	return &QueueMessage{
+		id:      id,
+		message: message,
+		rc:      rc,
+		fr:      time.UnixMilli(fr),
+		sent:    time.UnixMilli(sent),
+	}, nil
+
+}
+
+func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) error {
+	if err := validateQname(qname); err != nil {
+		return err
+	}
+
+	// todo validate message id
+
+	queue, err := rsmq.getQueue(qname, false)
+	if err != nil {
+		return err
+	}
+
+	key := rsmq.ns + qname
+	t := strconv.FormatUint(queue.ts+uint64(vt)*1000, 10)
+
+	evalCmd := rsmq.client.EvalSha(hashChangeMessageVisibility, []string{key, id, t})
+	if e, err := evalCmd.Bool(); err != nil {
+		return err
+	} else if !e {
+		return ErrMessageNotFound
+	}
+
+	return nil
+}
+
+func (rsmq *RedisSMQ) DeleteMessage(qname string, id string) error {
+	if err := validateQname(qname); err != nil {
+		return err
+	}
+
+	// todo validate message id
+
+	key := rsmq.ns + qname
+
+	tx := rsmq.client.TxPipeline()
+
+	zremIntCmd := tx.ZRem(key, id)
+	hdelIntCmd := tx.HDel(key+q, id+":rc", id+":fr")
+	if _, err := tx.Exec(); err != nil {
+		return err
+	}
+
+	if zremIntCmd.Val() != 1 || hdelIntCmd.Val() == 0 {
+		return ErrMessageNotFound
+	}
+
+	return nil
 }

@@ -19,7 +19,7 @@ func toSigned[num signed](v any) (n num, err error) {
 		r, err := strconv.ParseInt(val, 10, 0)
 		return num(r), err
 	default:
-		err := errors.New("incompatible type to convert")
+		err := errors.New("incompatible type to convert to signed")
 		return 0, err
 	}
 }
@@ -30,17 +30,19 @@ func toUnsigned[num unsigned](v any) (n num, err error) {
 		r, err := strconv.ParseUint(val, 10, 0)
 		return num(r), err
 	default:
-		err := errors.New("incompatible type to convert")
+		err := errors.New("incompatible type to convert to unsigned")
 		return 0, err
 	}
 }
 
-func toSignedOrDef[num signed](v any, def num) num {
-	n, err := toSigned[num](v)
-	if err != nil {
-		return def
+func toString(v any) (string, error) {
+	switch val := v.(type) {
+	case string:
+		return val, nil
+	default:
+		err := errors.New("incompatible type to convert to string")
+		return "", err
 	}
-	return n
 }
 
 func toUnsignedOrDef[num unsigned](v any, def num) num {
