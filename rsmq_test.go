@@ -2,6 +2,7 @@ package rsmq
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-redis/redis"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -11,8 +12,7 @@ import (
 
 type redisContainer struct {
 	testcontainers.Container
-	host string
-	port int
+	address string
 }
 
 func setupRedis(ctx context.Context) (*redisContainer, error) {
@@ -39,7 +39,9 @@ func setupRedis(ctx context.Context) (*redisContainer, error) {
 		return nil, err
 	}
 
-	return &redisContainer{Container: container, host: hostIP, port: mappedPort.Int()}, nil
+	address := fmt.Sprintf("%s:%d", hostIP, mappedPort.Int())
+
+	return &redisContainer{Container: container, address: address}, nil
 }
 
 func TestNewRedisSMQ(t *testing.T) {
@@ -56,9 +58,7 @@ func TestNewRedisSMQ(t *testing.T) {
 	defer rc.Container.Terminate(ctx)
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr: rc.address,
 	})
 
 	rsmq := NewRedisSMQ(client, "test-que")
@@ -68,7 +68,10 @@ func TestNewRedisSMQ(t *testing.T) {
 	if rsmq.client == nil {
 		t.Error("rsmq.pool cannot be nil")
 	}
-	if rsmq.namespace == "" {
+	if rsmq.ns == "" {
 		t.Error("rsmq.config cannot be nil")
 	}
+
+	rsmq.CreateQueue("test", 30, 0, 65535)
+
 }
