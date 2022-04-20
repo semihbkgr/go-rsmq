@@ -3,6 +3,7 @@ package rsmq
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-redis/redis"
@@ -46,22 +47,45 @@ func setupRedis(ctx context.Context) (*redisContainer, error) {
 	return &redisContainer{Container: container, address: address}, nil
 }
 
+var redisCnt *redisContainer
+var ctx context.Context
+
+func setup() error {
+	ctx = context.Background()
+	rc, err := setupRedis(ctx)
+	redisCnt = rc
+	return err
+}
+
+func shutdown() error {
+	return redisCnt.Container.Terminate(ctx)
+}
+
+func TestMain(m *testing.M) {
+	_ = setup()
+	code := m.Run()
+	_ = shutdown()
+	os.Exit(code)
+}
+
 func TestNewRedisSMQ(t *testing.T) {
 
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	ns := "test"
@@ -85,22 +109,24 @@ func TestRedisSMQ_CreateQueue(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
 
-	err = rsmq.CreateQueue("queue", 300, 100, 1024)
+	err := rsmq.CreateQueue("queue", 300, 100, 1024)
 
 	if err != nil {
 		t.Fatal(err)
@@ -113,17 +139,19 @@ func TestRedisSMQ_ListQueues(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -153,17 +181,19 @@ func TestRedisSMQ_GetQueueAttributes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -189,17 +219,19 @@ func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -225,17 +257,19 @@ func TestRedisSMQ_DeleteQueue(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -244,7 +278,7 @@ func TestRedisSMQ_DeleteQueue(t *testing.T) {
 
 	rsmq.CreateQueue(qname, 300, 100, 1024)
 
-	err = rsmq.DeleteQueue(qname)
+	err := rsmq.DeleteQueue(qname)
 
 	if err != nil {
 		t.Fatal(err)
@@ -257,17 +291,19 @@ func TestRedisSMQ_SendMessage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -278,7 +314,7 @@ func TestRedisSMQ_SendMessage(t *testing.T) {
 
 	message := "message"
 
-	_, err = rsmq.SendMessage(qname, message, 300)
+	_, err := rsmq.SendMessage(qname, message, 300)
 
 	if err != nil {
 		t.Fatal(err)
@@ -291,17 +327,19 @@ func TestRedisSMQ_ReceiveMessage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -337,17 +375,19 @@ func TestRedisSMQ_PopMessage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -383,17 +423,19 @@ func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
 
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -406,7 +448,7 @@ func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
 
 	id, _ := rsmq.SendMessage(qname, message, 0)
 
-	err = rsmq.ChangeMessageVisibility(qname, id, 90)
+	err := rsmq.ChangeMessageVisibility(qname, id, 90)
 
 	if err != nil {
 		t.Fatal(err)
@@ -419,17 +461,18 @@ func TestRedisSMQ_DeleteMessage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-
-	ctx := context.Background()
-	rc, err := setupRedis(ctx)
-	if err != nil {
-		t.Fatal(err)
+	if redisCnt == nil || ctx == nil {
+		t.Error("env cannot be set correctly")
+		t.FailNow()
 	}
-
-	defer rc.Container.Terminate(ctx)
-
 	client := redis.NewClient(&redis.Options{
-		Addr: rc.address,
+		Addr: redisCnt.address,
+	})
+
+	t.Cleanup(func() {
+		client.FlushAll()
+		client.ScriptFlush()
+		client.FlushDB()
 	})
 
 	rsmq := NewRedisSMQ(client, "test")
@@ -442,7 +485,7 @@ func TestRedisSMQ_DeleteMessage(t *testing.T) {
 
 	id, _ := rsmq.SendMessage(qname, message, 0)
 
-	err = rsmq.DeleteMessage(qname, id)
+	err := rsmq.DeleteMessage(qname, id)
 
 	if err != nil {
 		t.Fatal(err)

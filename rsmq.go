@@ -8,10 +8,23 @@ import (
 	"time"
 )
 
+// unset values
 const (
-	q         = ":Q"
-	queues    = "QUEUES"
-	defaultNs = "rsmq"
+	UnsetVt      = ^uint(0)
+	UnsetDelay   = ^uint(0)
+	UnsetMaxsize = -(int(^uint(0)>>1) - 1)
+)
+
+const (
+	q      = ":Q"
+	queues = "QUEUES"
+)
+
+const (
+	defaultNs      = "rsmq"
+	defaultVt      = 30
+	defaultDelay   = 0
+	defaultMaxsize = 65536
 )
 
 // Queue and message errors
@@ -88,6 +101,16 @@ func NewRedisSMQ(client *redis.Client, ns string) *RedisSMQ {
 
 // CreateQueue creates a new queue
 func (rsmq *RedisSMQ) CreateQueue(qname string, vt uint, delay uint, maxsize int) error {
+	if vt == UnsetVt {
+		vt = defaultVt
+	}
+	if delay == UnsetDelay {
+		delay = defaultDelay
+	}
+	if maxsize == UnsetMaxsize {
+		maxsize = defaultMaxsize
+	}
+
 	if err := validateQname(qname); err != nil {
 		return err
 	}
@@ -199,6 +222,22 @@ func (rsmq *RedisSMQ) SetQueueAttributes(qname string, vt uint, delay uint, maxs
 	if err := validateQname(qname); err != nil {
 		return nil, err
 	}
+
+	queue, err := rsmq.getQueue(qname, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if vt == UnsetVt {
+		vt = queue.vt
+	}
+	if delay == UnsetDelay {
+		delay = queue.delay
+	}
+	if maxsize == UnsetMaxsize {
+		maxsize = queue.maxsize
+	}
+
 	if err := validateVt(vt); err != nil {
 		return nil, err
 	}
@@ -210,11 +249,6 @@ func (rsmq *RedisSMQ) SetQueueAttributes(qname string, vt uint, delay uint, maxs
 	}
 
 	key := rsmq.ns + qname + q
-
-	queue, err := rsmq.getQueue(qname, false)
-	if err != nil {
-		return nil, err
-	}
 
 	tx := rsmq.client.TxPipeline()
 	tx.HSet(key, "modified", queue.ts)
@@ -251,7 +285,6 @@ func (rsmq *RedisSMQ) DeleteQueue(qname string) error {
 }
 
 func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
-
 	key := rsmq.ns + qname + q
 
 	tx := rsmq.client.TxPipeline()
@@ -300,13 +333,17 @@ func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (str
 	if err := validateQname(qname); err != nil {
 		return "", err
 	}
-	if err := validateDelay(delay); err != nil {
+
+	queue, err := rsmq.getQueue(qname, true)
+	if err != nil {
 		return "", err
 	}
 
-	queue, err := rsmq.getQueue(qname, true)
+	if delay == UnsetDelay {
+		delay = queue.delay
+	}
 
-	if err != nil {
+	if err := validateDelay(delay); err != nil {
 		return "", err
 	}
 
@@ -317,7 +354,6 @@ func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (str
 	key := rsmq.ns + qname
 
 	tx := rsmq.client.TxPipeline()
-
 	tx.ZAdd(key, redis.Z{
 		Score:  float64(queue.ts + uint64(delay)*1000),
 		Member: queue.uid,
@@ -327,6 +363,7 @@ func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (str
 	if _, err := tx.Exec(); err != nil {
 		return "", err
 	}
+
 	return queue.uid, nil
 }
 
@@ -335,13 +372,17 @@ func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, erro
 	if err := validateQname(qname); err != nil {
 		return nil, err
 	}
-	if err := validateVt(vt); err != nil {
+
+	queue, err := rsmq.getQueue(qname, true)
+	if err != nil {
 		return nil, err
 	}
 
-	queue, err := rsmq.getQueue(qname, true)
+	if vt == UnsetVt {
+		vt = queue.vt
+	}
 
-	if err != nil {
+	if err := validateVt(vt); err != nil {
 		return nil, err
 	}
 
@@ -371,7 +412,6 @@ func (rsmq *RedisSMQ) PopMessage(qname string) (*QueueMessage, error) {
 
 	evalCmd := rsmq.client.EvalSha(hashPopMessage, []string{key, t})
 	return rsmq.createQueueMessage(evalCmd)
-
 }
 
 func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) {
@@ -410,7 +450,6 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 		fr:      time.UnixMilli(fr),
 		sent:    time.UnixMilli(sent),
 	}, nil
-
 }
 
 // ChangeMessageVisibility changes message visibility
