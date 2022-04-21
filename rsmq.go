@@ -1,11 +1,12 @@
 package rsmq
 
 import (
-	"github.com/go-redis/redis"
-	"github.com/pkg/errors"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
 )
 
 // unset values
@@ -71,15 +72,19 @@ type queueDef struct {
 
 // QueueMessage queue message
 type QueueMessage struct {
-	id      string
-	message string
-	rc      uint64
-	fr      time.Time
-	sent    time.Time
+	Id      string
+	Message string
+	Rc      uint64
+	Fr      time.Time
+	Sent    time.Time
 }
 
 // NewRedisSMQ return new client
 func NewRedisSMQ(client *redis.Client, ns string) *RedisSMQ {
+	if client == nil {
+		panic("nil redis client")
+	}
+
 	if ns == "" {
 		ns = defaultNs
 	}
@@ -159,7 +164,7 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 		return nil, err
 	}
 
-	t, err := rsmq.client.Time().Result()
+	queue, err := rsmq.getQueue(qname, false)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +174,7 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 	tx := rsmq.client.TxPipeline()
 	hmGetSliceCmd := tx.HMGet(key+q, "vt", "delay", "maxsize", "totalrecv", "totalsent", "created", "modified")
 	zCardIntCmd := tx.ZCard(key)
-	zCountIntCmd := tx.ZCount(key, strconv.FormatInt(t.UnixMilli(), 10), "+inf")
+	zCountIntCmd := tx.ZCount(key, strconv.FormatInt(int64(queue.ts), 10), "+inf")
 	if _, err := tx.Exec(); err != nil {
 		return nil, err
 	}
@@ -297,7 +302,7 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 
 	hmGetValues := hmGetSliceCmd.Val()
 	if hmGetValues[0] == nil || hmGetValues[1] == nil || hmGetValues[2] == nil {
-		return nil, errors.New("")
+		return nil, ErrQueueNotFound
 	}
 	vt, err := toUnsigned[uint](hmGetValues[0])
 	if err != nil {
@@ -419,8 +424,8 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 	if !ok {
 		return nil, errors.New("mismatched message response type")
 	}
-	if len(vals) < 4 {
-		return nil, errors.New("missing fields in message response")
+	if len(vals) == 0 {
+		return nil, nil
 	}
 	id, err := toString(vals[0])
 	if err != nil {
@@ -436,19 +441,19 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 	}
 	fr, err := toSigned[int64](vals[3])
 	if err != nil {
-		return nil, errors.Wrapf(err, "first received at: %v", vals[3])
+		return nil, errors.Wrapf(err, "first received time: %v", vals[3])
 	}
 	sent, err := strconv.ParseInt(id[0:10], 36, 64)
 	if err != nil {
-		return nil, errors.New("cannot parse sent time from id")
+		return nil, errors.Wrapf(err, "sent time: %v", vals[4])
 	}
 
 	return &QueueMessage{
-		id:      id,
-		message: message,
-		rc:      rc,
-		fr:      time.UnixMilli(fr),
-		sent:    time.UnixMilli(sent),
+		Id:      id,
+		Message: message,
+		Rc:      rc,
+		Fr:      time.UnixMilli(fr),
+		Sent:    time.UnixMilli(sent),
 	}, nil
 }
 
@@ -485,6 +490,11 @@ func (rsmq *RedisSMQ) DeleteMessage(qname string, id string) error {
 		return err
 	}
 	if err := validateID(id); err != nil {
+		return err
+	}
+
+	_, err := rsmq.getQueue(qname, false)
+	if err != nil {
 		return err
 	}
 

@@ -1,7 +1,7 @@
 package rsmq
 
 import (
-	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -15,52 +15,52 @@ type unsigned interface {
 	uint | uint64
 }
 
-func toSigned[num signed](v any) (num, error) {
-	switch val := v.(type) {
+func toSigned[num signed](val any) (num, error) {
+	switch v := val.(type) {
 	case int:
-		return num(val), nil
+		return num(v), nil
 	case int64:
-		return num(val), nil
+		return num(v), nil
 	case string:
-		r, err := strconv.ParseInt(val, 10, 0)
+		r, err := strconv.ParseInt(v, 10, 0)
 		return num(r), err
 	default:
-		err := errors.New("incompatible type to convert to signed")
+		err := fmt.Errorf("type: %T, incompatible type to convert to signed", val)
 		return 0, err
 	}
 }
 
-func toUnsigned[num unsigned](v any) (num, error) {
-	switch val := v.(type) {
+func toUnsigned[num unsigned](val any) (num, error) {
+	switch v := val.(type) {
 	case uint:
-		return num(val), nil
+		return num(v), nil
 	case uint64:
-		return num(val), nil
+		return num(v), nil
 	case int:
-		return num(val), nil
+		return num(v), nil
 	case int64:
-		return num(val), nil
+		return num(v), nil
 	case string:
-		r, err := strconv.ParseUint(val, 10, 0)
+		r, err := strconv.ParseUint(v, 10, 0)
 		return num(r), err
 	default:
-		err := errors.New("incompatible type to convert to unsigned")
+		err := fmt.Errorf("type: %T, incompatible type to convert to unsigned", val)
 		return 0, err
 	}
 }
 
-func toString(v any) (string, error) {
-	switch val := v.(type) {
+func toString(val any) (string, error) {
+	switch v := val.(type) {
 	case string:
-		return val, nil
+		return v, nil
 	default:
-		err := errors.New("incompatible type to convert to string")
+		err := fmt.Errorf("type: %T, incompatible type to convert to string", val)
 		return "", err
 	}
 }
 
-func toUnsignedOrDef[num unsigned](v any, def num) num {
-	n, err := toUnsigned[num](v)
+func toUnsignedOrDef[num unsigned](val any, def num) num {
+	n, err := toUnsigned[num](val)
 	if err != nil {
 		return def
 	}
@@ -69,14 +69,14 @@ func toUnsignedOrDef[num unsigned](v any, def num) num {
 
 const idLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-func makeID(l int) string {
-	if l <= 0 {
+func makeID(n int) string {
+	if n <= 0 {
 		return ""
 	}
 	sb := strings.Builder{}
-	length := len(idLetters)
-	for i := 0; i < l; i++ {
-		sb.WriteByte(idLetters[rand.Int()%length])
+	ln := len(idLetters)
+	for i := 0; i < n; i++ {
+		sb.WriteByte(idLetters[rand.Int()%ln])
 	}
 	return sb.String()
 }
