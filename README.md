@@ -1,12 +1,18 @@
-# go-rsmq
+[![Go Reference](https://pkg.go.dev/badge/github.com/semihbkgr/go-rsmq.svg)](https://pkg.go.dev/github.com/semihbkgr/go-rsmq)
+![ci workflow](https://github.com/semihbkgr/go-rsmq/actions/workflows/ci.yml/badge.svg)
 
-### Redis Simple Message Queue
+# go-rsmq
 
 A lightweight message queue for Go that requires no dedicated queue server. Just a Redis server.
 
 Go implementation of https://github.com/smrchy/rsmq.
 
-### Example
+## Redis Simple Message Queue
+
+If you run a Redis server and currently use Amazon SQS or a similar message queue you might as well use this fast little
+replacement. Using a shared Redis server multiple Go processes can send / receive messages.
+
+## Example
 
 ``` go
 
@@ -39,8 +45,10 @@ if msg == nil {
 
 ```
 
-```
-queue exists
-message sent, id: g92v9q70wmonrHFkSuohOf8IvDIjS5HU
-message received, id: g92v9q70wmonrHFkSuohOf8IvDIjS5HU, message: message
-```
+[Producer/Consumer example](./example/main.go)
+
+## Implementation Notes
+
+All details about the queue are [here](https://github.com/smrchy/rsmq/blob/master/README.md)
+
+It follows all naming conventions of javascript implementation
