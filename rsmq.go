@@ -153,6 +153,50 @@ func (rsmq *RedisSMQ) CreateQueue(qname string, vt uint, delay uint, maxsize int
 	return err
 }
 
+func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
+	key := rsmq.ns + qname + q
+
+	tx := rsmq.client.TxPipeline()
+
+	hmGetSliceCmd := tx.HMGet(key, "vt", "delay", "maxsize")
+	timeCmd := tx.Time()
+	if _, err := tx.Exec(); err != nil {
+		return nil, err
+	}
+
+	hmGetValues := hmGetSliceCmd.Val()
+	if hmGetValues[0] == nil || hmGetValues[1] == nil || hmGetValues[2] == nil {
+		return nil, ErrQueueNotFound
+	}
+	vt, err := toUnsigned[uint](hmGetValues[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
+	}
+	delay, err := toUnsigned[uint](hmGetValues[1])
+	if err != nil {
+		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
+	}
+	maxsize, err := toSigned[int](hmGetValues[2])
+	if err != nil {
+		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
+	}
+
+	t := timeCmd.Val()
+
+	randUID := ""
+	if uid {
+		randUID = strconv.FormatInt(t.UnixNano()/1000, 36) + makeID(22)
+	}
+
+	return &queueDef{
+		vt:      vt,
+		delay:   delay,
+		maxsize: maxsize,
+		ts:      uint64(t.UnixMilli()),
+		uid:     randUID,
+	}, nil
+}
+
 // ListQueues lists queues
 func (rsmq *RedisSMQ) ListQueues() ([]string, error) {
 	return rsmq.client.SMembers(rsmq.ns + queues).Result()
@@ -267,6 +311,11 @@ func (rsmq *RedisSMQ) SetQueueAttributes(qname string, vt uint, delay uint, maxs
 	return rsmq.GetQueueAttributes(qname)
 }
 
+// Quit close redis client
+func (rsmq *RedisSMQ) Quit() error {
+	return rsmq.client.Close()
+}
+
 // DeleteQueue delete queue
 func (rsmq *RedisSMQ) DeleteQueue(qname string) error {
 	if err := validateQname(qname); err != nil {
@@ -287,50 +336,6 @@ func (rsmq *RedisSMQ) DeleteQueue(qname string) error {
 	}
 
 	return nil
-}
-
-func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
-	key := rsmq.ns + qname + q
-
-	tx := rsmq.client.TxPipeline()
-
-	hmGetSliceCmd := tx.HMGet(key, "vt", "delay", "maxsize")
-	timeCmd := tx.Time()
-	if _, err := tx.Exec(); err != nil {
-		return nil, err
-	}
-
-	hmGetValues := hmGetSliceCmd.Val()
-	if hmGetValues[0] == nil || hmGetValues[1] == nil || hmGetValues[2] == nil {
-		return nil, ErrQueueNotFound
-	}
-	vt, err := toUnsigned[uint](hmGetValues[0])
-	if err != nil {
-		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
-	}
-	delay, err := toUnsigned[uint](hmGetValues[1])
-	if err != nil {
-		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
-	}
-	maxsize, err := toSigned[int](hmGetValues[2])
-	if err != nil {
-		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
-	}
-
-	t := timeCmd.Val()
-
-	randUID := ""
-	if uid {
-		randUID = strconv.FormatInt(t.UnixNano()/1000, 36) + makeID(22)
-	}
-
-	return &queueDef{
-		vt:      vt,
-		delay:   delay,
-		maxsize: maxsize,
-		ts:      uint64(t.UnixMilli()),
-		uid:     randUID,
-	}, nil
 }
 
 // SendMessage send message

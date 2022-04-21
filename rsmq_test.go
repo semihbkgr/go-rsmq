@@ -3,11 +3,12 @@ package rsmq
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis"
 	"log"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/go-redis/redis"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -19,11 +20,13 @@ type redisContainer struct {
 }
 
 func setupRedis(ctx context.Context) (*redisContainer, error) {
+
 	req := testcontainers.ContainerRequest{
 		Image:        "redis:6.2.6-alpine",
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForLog("* Ready to accept connections"),
 	}
+
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
@@ -45,26 +48,32 @@ func setupRedis(ctx context.Context) (*redisContainer, error) {
 	address := fmt.Sprintf("%s:%d", hostIP, mappedPort.Int())
 
 	return &redisContainer{Container: container, address: address}, nil
+
 }
 
 var redisCnt *redisContainer
 var ctx context.Context
 
 func setup() error {
+
 	ctx = context.Background()
 	rc, err := setupRedis(ctx)
 	redisCnt = rc
 	return err
+
 }
 
 func shutdown() error {
+
 	if redisCnt != nil {
 		return redisCnt.Container.Terminate(ctx)
 	}
 	return nil
+
 }
 
 func TestMain(m *testing.M) {
+
 	err := setup()
 	if err != nil {
 		log.Print(err)
@@ -78,12 +87,15 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(code)
+
 }
 
 func preIntegrationTest(t *testing.T) *redis.Client {
+
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
+
 	if redisCnt == nil || ctx == nil {
 		t.Error("env cannot be set correctly")
 		t.FailNow()
@@ -98,7 +110,9 @@ func preIntegrationTest(t *testing.T) *redis.Client {
 		client.ScriptFlush()
 		client.FlushDB()
 	})
+
 	return client
+
 }
 
 func TestNewRedisSMQ(t *testing.T) {
@@ -305,6 +319,20 @@ func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
 	}
 	if err != ErrQueueNotFound {
 		t.Error("error is not as expected")
+	}
+
+}
+
+func TestRedisSMQ_Quit(t *testing.T) {
+
+	client := preIntegrationTest(t)
+
+	rsmq := NewRedisSMQ(client, "test")
+
+	err := rsmq.Quit()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 }
