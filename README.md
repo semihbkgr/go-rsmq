@@ -34,12 +34,13 @@ if err != nil {
 if msg == nil {
     fmt.Println("queue is empty")
 } else {
-    fmt.Printf("message read, id: %s, message: %s", msg.Id, msg.Message)
+    fmt.Printf("message received, id: %s, message: %s", msg.ID, msg.Message)
 }
 
 ```
 
 ```
+queue exists
 message sent, id: g92v9q70wmonrHFkSuohOf8IvDIjS5HU
-message read, id: g92v9q70wmonrHFkSuohOf8IvDIjS5HU, message: message
+message received, id: g92v9q70wmonrHFkSuohOf8IvDIjS5HU, message: message
 ```

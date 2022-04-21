@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// unset values
+// Unset values are the special values to refer default values of the attributes
 const (
 	UnsetVt      = ^uint(0)
 	UnsetDelay   = ^uint(0)
@@ -28,7 +28,7 @@ const (
 	defaultMaxsize = 65536
 )
 
-// Queue and message errors
+// Errors returned on rsmq operation
 var (
 	ErrQueueNotFound   = errors.New("queue not found")
 	ErrQueueExists     = errors.New("queue exists")
@@ -42,13 +42,13 @@ var (
 	hashChangeMessageVisibility = redis.NewScript(scriptChangeMessageVisibility).Hash()
 )
 
-// RedisSMQ client
+// RedisSMQ is the client of rsmq to execute queue and message operations
 type RedisSMQ struct {
 	client *redis.Client
 	ns     string
 }
 
-// QueueAttributes queue attributes
+// QueueAttributes contains some attributes and stats of queue
 type QueueAttributes struct {
 	Vt         uint
 	Delay      uint
@@ -70,16 +70,16 @@ type queueDef struct {
 	qname   string
 }
 
-// QueueMessage queue message
+// QueueMessage contains content and metadata of message received from queue
 type QueueMessage struct {
-	Id      string
+	ID      string
 	Message string
 	Rc      uint64
 	Fr      time.Time
 	Sent    time.Time
 }
 
-// NewRedisSMQ return new client
+// NewRedisSMQ creates and returns new rsmq client
 func NewRedisSMQ(client *redis.Client, ns string) *RedisSMQ {
 	if client == nil {
 		panic("nil redis client")
@@ -104,7 +104,9 @@ func NewRedisSMQ(client *redis.Client, ns string) *RedisSMQ {
 	return rsmq
 }
 
-// CreateQueue creates a new queue
+// CreateQueue creates a new queue with given attributes
+// to create new queue with default attributes:
+//	err:=redisRsmq.CreateQueue(qname,rsmq.UnsetVt,rsmq.UnsetDelay,rsmq.UnsetMaxsize)
 func (rsmq *RedisSMQ) CreateQueue(qname string, vt uint, delay uint, maxsize int) error {
 	if vt == UnsetVt {
 		vt = defaultVt
@@ -197,12 +199,12 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 	}, nil
 }
 
-// ListQueues lists queues
+// ListQueues returns the slice consist of the existing queues
 func (rsmq *RedisSMQ) ListQueues() ([]string, error) {
 	return rsmq.client.SMembers(rsmq.ns + queues).Result()
 }
 
-// GetQueueAttributes get queue attributes
+// GetQueueAttributes returns queue attributes
 func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -266,7 +268,9 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 
 }
 
-// SetQueueAttributes set queue attributes
+// SetQueueAttributes sets queue attributes
+// to not change some attributes:
+//	queAttrib,err:=redisRsmq.CreateQueue(qname,rsmq.UnsetVt,rsmq.UnsetDelay,newMaxsize)
 func (rsmq *RedisSMQ) SetQueueAttributes(qname string, vt uint, delay uint, maxsize int) (*QueueAttributes, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -311,12 +315,12 @@ func (rsmq *RedisSMQ) SetQueueAttributes(qname string, vt uint, delay uint, maxs
 	return rsmq.GetQueueAttributes(qname)
 }
 
-// Quit close redis client
+// Quit closes redis client
 func (rsmq *RedisSMQ) Quit() error {
 	return rsmq.client.Close()
 }
 
-// DeleteQueue delete queue
+// DeleteQueue deletes queue
 func (rsmq *RedisSMQ) DeleteQueue(qname string) error {
 	if err := validateQname(qname); err != nil {
 		return err
@@ -338,7 +342,9 @@ func (rsmq *RedisSMQ) DeleteQueue(qname string) error {
 	return nil
 }
 
-// SendMessage send message
+// SendMessage sends message to the queue
+// to refer queue delay:
+//	id,err:=redisRsmq.SendMessage(qname,message,rsmq.UnsetDelay)
 func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (string, error) {
 	if err := validateQname(qname); err != nil {
 		return "", err
@@ -377,7 +383,7 @@ func (rsmq *RedisSMQ) SendMessage(qname string, message string, delay uint) (str
 	return queue.uid, nil
 }
 
-// ReceiveMessage receive message
+// ReceiveMessage receives message from the queue
 func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -405,7 +411,7 @@ func (rsmq *RedisSMQ) ReceiveMessage(qname string, vt uint) (*QueueMessage, erro
 	return rsmq.createQueueMessage(evalCmd)
 }
 
-// PopMessage pop message
+// PopMessage pop message from queue
 func (rsmq *RedisSMQ) PopMessage(qname string) (*QueueMessage, error) {
 	if err := validateQname(qname); err != nil {
 		return nil, err
@@ -454,7 +460,7 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 	}
 
 	return &QueueMessage{
-		Id:      id,
+		ID:      id,
 		Message: message,
 		Rc:      rc,
 		Fr:      time.UnixMilli(fr),
@@ -463,6 +469,8 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 }
 
 // ChangeMessageVisibility changes message visibility
+// to refer queue vt
+//	err:=redisRsmq.ChangeMessageVisibility(qname,id,rsmq.UnsetVt)
 func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) error {
 	if err := validateQname(qname); err != nil {
 		return err
@@ -473,6 +481,14 @@ func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) 
 
 	queue, err := rsmq.getQueue(qname, false)
 	if err != nil {
+		return err
+	}
+
+	if vt == UnsetVt {
+		vt = queue.vt
+	}
+
+	if err := validateVt(vt); err != nil {
 		return err
 	}
 
@@ -489,7 +505,7 @@ func (rsmq *RedisSMQ) ChangeMessageVisibility(qname string, id string, vt uint) 
 	return nil
 }
 
-// DeleteMessage delete message
+// DeleteMessage deletes message in queue
 func (rsmq *RedisSMQ) DeleteMessage(qname string, id string) error {
 	if err := validateQname(qname); err != nil {
 		return err

@@ -463,7 +463,7 @@ func TestRedisSMQ_ReceiveMessage(t *testing.T) {
 	if queMsg == nil {
 		t.Fatal("queue message is nil")
 	}
-	if queMsg.Id != id {
+	if queMsg.ID != id {
 		t.Error("id is not as expected")
 	}
 	if queMsg.Message != message {
@@ -521,7 +521,7 @@ func TestRedisSMQ_PopMessage(t *testing.T) {
 	if queMsg == nil {
 		t.Fatal("queue message is nil")
 	}
-	if queMsg.Id != id {
+	if queMsg.ID != id {
 		t.Error("id is not as expected")
 	}
 	if queMsg.Message != message {
@@ -584,7 +584,7 @@ func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = rsmq.ChangeMessageVisibility(qname, id, UnsetDelay)
+	err = rsmq.ChangeMessageVisibility(qname, id, UnsetVt)
 
 	if err == nil {
 		t.Error("error is nil when changing visibility of non-existing message")
@@ -593,7 +593,7 @@ func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
 		t.Error("error is not as expected")
 	}
 
-	err = rsmq.ChangeMessageVisibility("non-existing", id, UnsetDelay)
+	err = rsmq.ChangeMessageVisibility("non-existing", id, UnsetVt)
 
 	if err == nil {
 		t.Error("error is nil when changing visibility of message in non-existing queue")
