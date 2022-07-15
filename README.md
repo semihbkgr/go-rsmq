@@ -1,5 +1,6 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/semihbkgr/go-rsmq.svg)](https://pkg.go.dev/github.com/semihbkgr/go-rsmq)
 ![ci workflow](https://github.com/semihbkgr/go-rsmq/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/SemihBKGR/go-rsmq/branch/master/graph/badge.svg?token=IVOQ6PLNHM)](https://codecov.io/gh/SemihBKGR/go-rsmq)
 
 # go-rsmq
 
@@ -45,10 +46,10 @@ if msg == nil {
 
 ```
 
-[Producer/Consumer example](./example/main.go)
+[Producer/Consumer example](./example_test.go)
 
 ## Implementation Notes
 
-All details about the queue are [here](https://github.com/smrchy/rsmq/blob/master/README.md)
+All details about the queue are [here](https://github.com/smrchy/rsmq/blob/master/README.md).
 
-It follows all naming conventions of javascript implementation
+It follows all naming conventions of javascript implementation.

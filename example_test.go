@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func Example_main() {
+func Example_producer_consumer() {
 
 	ns := "example"
 	qname := "queue"
