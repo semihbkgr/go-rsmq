@@ -1,4 +1,4 @@
-package main
+package rsmq_test
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func main() {
+func Example_main() {
 
 	ns := "example"
 	qname := "queue"
