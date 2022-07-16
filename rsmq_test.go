@@ -300,7 +300,7 @@ func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if queAttrib == nil {
-		t.Error("queue attributes is nil")
+		t.Fatal("queue attributes is nil")
 	}
 	if queAttrib.Vt != newVt {
 		t.Error("queue attributes vt is not expected")

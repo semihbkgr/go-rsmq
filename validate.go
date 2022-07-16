@@ -15,8 +15,8 @@ var (
 )
 
 var (
-	regexpQname = regexp.MustCompile("^([a-zA-Z\\d_-]){1,160}$")
-	regexpID    = regexp.MustCompile("^([a-zA-Z\\d:]){32}$")
+	regexpQname = regexp.MustCompile(`^([a-zA-Z\d_-]){1,160}$`)
+	regexpID    = regexp.MustCompile(`^([a-zA-Z\d:]){32}$`)
 )
 
 func validateQname(val string) error {

@@ -196,6 +196,7 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 		maxsize: maxsize,
 		ts:      uint64(t.UnixMilli()),
 		uid:     randUID,
+		qname:   qname,
 	}, nil
 }
 

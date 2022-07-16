@@ -8,6 +8,10 @@ A lightweight message queue for Go that requires no dedicated queue server. Just
 
 Go implementation of https://github.com/smrchy/rsmq.
 
+```shell
+go get github.com/semihbkgr/go-rsmq
+```
+
 ## Redis Simple Message Queue
 
 If you run a Redis server and currently use Amazon SQS or a similar message queue you might as well use this fast little
