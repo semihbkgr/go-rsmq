@@ -82,7 +82,7 @@ type QueueMessage struct {
 // NewRedisSMQ creates and returns new rsmq client
 func NewRedisSMQ(client *redis.Client, ns string) *RedisSMQ {
 	if client == nil {
-		panic("nil redis client")
+		panic("")
 	}
 
 	if ns == "" {
