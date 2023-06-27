@@ -118,9 +118,11 @@ func TestNewRedisSMQ(t *testing.T) {
 
 	assert.Equal(t, ns+":", rsmq.ns, "namespace is not as expected")
 
-	assert.Panics(t, func() {
-		NewRedisSMQ(nil, ns)
-	}, "not panicking when redis client is not")
+	t.Run("panics when redis client is nil", func(t *testing.T) {
+		assert.Panics(t, func() {
+			NewRedisSMQ(nil, ns)
+		}, "not panicking when redis client is not")
+	})
 }
 
 func TestRedisSMQ_CreateQueue(t *testing.T) {
@@ -132,12 +134,16 @@ func TestRedisSMQ_CreateQueue(t *testing.T) {
 	err := rsmq.CreateQueue(qname, UnsetVt, UnsetDelay, UnsetMaxsize)
 	assert.Nil(t, err, "error is not nil on creating a queue")
 
-	err = rsmq.CreateQueue(qname, UnsetVt, UnsetDelay, UnsetMaxsize)
-	assert.NotNil(t, err, "error is nil on creating the existing queue")
-	assert.Equal(t, ErrQueueExists, err, "error is not as expected")
+	t.Run("error when the queue already exists", func(t *testing.T) {
+		err = rsmq.CreateQueue(qname, UnsetVt, UnsetDelay, UnsetMaxsize)
+		assert.NotNil(t, err, "error is nil on creating the existing queue")
+		assert.Equal(t, ErrQueueExists, err, "error is not as expected")
+	})
 
-	err = rsmq.CreateQueue("it is invalid queue name", UnsetVt, UnsetDelay, UnsetMaxsize)
-	assert.NotNil(t, err, "error is nil on creating a queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		err = rsmq.CreateQueue("it is invalid queue name", UnsetVt, UnsetDelay, UnsetMaxsize)
+		assert.NotNil(t, err, "error is nil on creating a queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_ListQueues(t *testing.T) {
@@ -178,15 +184,19 @@ func TestRedisSMQ_GetQueueAttributes(t *testing.T) {
 	assert.Nil(t, err, "error is not nil on getting queue attributes")
 	assert.NotNil(t, queAttrib, "queueAttributes is nil")
 
-	queAttrib, err = rsmq.GetQueueAttributes("non-existing")
-	assert.NotNil(t, err, "error is nil on getting attributes of non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
-	assert.Nil(t, queAttrib, "queueAttributes is not nil on getting attributes of non-existing queue")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		queAttrib, err = rsmq.GetQueueAttributes("non-existing")
+		assert.NotNil(t, err, "error is nil on getting attributes of non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+		assert.Nil(t, queAttrib, "queueAttributes is not nil on getting attributes of non-existing queue")
+	})
 
-	queAttrib, err = rsmq.GetQueueAttributes("it is invalid queue name")
-	assert.NotNil(t, err, "error is nil on getting attributes of queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
-	assert.Nil(t, queAttrib, "queueAttributes is not nil on getting attributes of queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		queAttrib, err = rsmq.GetQueueAttributes("it is invalid queue name")
+		assert.NotNil(t, err, "error is nil on getting attributes of queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+		assert.Nil(t, queAttrib, "queueAttributes is not nil on getting attributes of queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
@@ -213,15 +223,19 @@ func TestRedisSMQ_SetQueueAttributes(t *testing.T) {
 	assert.Equal(t, newDelay, queAttrib.Delay, "queueAttributes Delay is not as expected")
 	assert.Equal(t, newMaxsize, queAttrib.Maxsize, "queueAttributes Maxsize is not as expected")
 
-	queAttrib, err = rsmq.SetQueueAttributes("non-existing", UnsetVt, UnsetDelay, UnsetMaxsize)
-	assert.NotNil(t, err, "error is nil on setting attributes of non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
-	assert.Nil(t, queAttrib, "queueAttributes is not nil on setting attributes of non-existing queue")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		queAttrib, err = rsmq.SetQueueAttributes("non-existing", UnsetVt, UnsetDelay, UnsetMaxsize)
+		assert.NotNil(t, err, "error is nil on setting attributes of non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+		assert.Nil(t, queAttrib, "queueAttributes is not nil on setting attributes of non-existing queue")
+	})
 
-	queAttrib, err = rsmq.SetQueueAttributes("it is invalid queue name", UnsetVt, UnsetDelay, UnsetMaxsize)
-	assert.NotNil(t, err, "error is nil on setting attributes of queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
-	assert.Nil(t, queAttrib, "queueAttributes is not nil on setting attributes of queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		queAttrib, err = rsmq.SetQueueAttributes("it is invalid queue name", UnsetVt, UnsetDelay, UnsetMaxsize)
+		assert.NotNil(t, err, "error is nil on setting attributes of queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+		assert.Nil(t, queAttrib, "queueAttributes is not nil on setting attributes of queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_Quit(t *testing.T) {
@@ -248,13 +262,17 @@ func TestRedisSMQ_DeleteQueue(t *testing.T) {
 	assert.Nil(t, err, "error is not nil on listing queues")
 	assert.Empty(t, queues, "queue slice is not empty")
 
-	err = rsmq.DeleteQueue("non-existing")
-	assert.NotNil(t, err, "error is nil on deleting non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		err = rsmq.DeleteQueue("non-existing")
+		assert.NotNil(t, err, "error is nil on deleting non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	})
 
-	err = rsmq.DeleteQueue("it is invalid queue name")
-	assert.NotNil(t, err, "error is nil on deleting queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		err = rsmq.DeleteQueue("it is invalid queue name")
+		assert.NotNil(t, err, "error is nil on deleting queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	})
 }
 
 func TestRedisSMQ_SendMessage(t *testing.T) {
@@ -272,26 +290,32 @@ func TestRedisSMQ_SendMessage(t *testing.T) {
 	assert.Nil(t, err, "error is not nil on sending a message")
 	assert.NotEmpty(t, id, "id is empty on sending a message")
 
-	qname2 := "que2"
-	err = rsmq.CreateQueue(qname2, UnsetVt, UnsetDelay, 1024)
-	assert.Nil(t, err, "error is not nil on creating a queue")
+	t.Run("error when the message size limit is exceeded", func(t *testing.T) {
+		qname2 := "que2"
+		err = rsmq.CreateQueue(qname2, UnsetVt, UnsetDelay, 1024)
+		assert.Nil(t, err, "error is not nil on creating a queue")
 
-	b := make([]byte, 2048)
-	message = string(b)
-	id, err = rsmq.SendMessage(qname2, message, UnsetDelay)
-	assert.NotNil(t, err, "error is nil on sending a message which exceeds the size limit")
-	assert.Equal(t, ErrMessageTooLong, err, "error is as expected")
-	assert.Empty(t, id, "id is not empty on sending a message which exceeds the size limit")
+		b := make([]byte, 2048)
+		message = string(b)
+		id, err = rsmq.SendMessage(qname2, message, UnsetDelay)
+		assert.NotNil(t, err, "error is nil on sending a message which exceeds the size limit")
+		assert.Equal(t, ErrMessageTooLong, err, "error is as expected")
+		assert.Empty(t, id, "id is not empty on sending a message which exceeds the size limit")
+	})
 
-	id, err = rsmq.SendMessage("non-existing", message, UnsetDelay)
-	assert.NotNil(t, err, "error is nil on sending a message to non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
-	assert.Empty(t, id, "id is not empty on sending a message to non-existing queue")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		id, err = rsmq.SendMessage("non-existing", message, UnsetDelay)
+		assert.NotNil(t, err, "error is nil on sending a message to non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+		assert.Empty(t, id, "id is not empty on sending a message to non-existing queue")
+	})
 
-	id, err = rsmq.SendMessage("it is invalid queue name", message, UnsetDelay)
-	assert.NotNil(t, err, "error is nil on sending a message to the queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
-	assert.Empty(t, id, "id is not empty on sending a message to the queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		id, err = rsmq.SendMessage("it is invalid queue name", message, UnsetDelay)
+		assert.NotNil(t, err, "error is nil on sending a message to the queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+		assert.Empty(t, id, "id is not empty on sending a message to the queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_ReceiveMessage(t *testing.T) {
@@ -314,19 +338,25 @@ func TestRedisSMQ_ReceiveMessage(t *testing.T) {
 	assert.Equal(t, id, queMsg.ID, "queueMessage ID is not as expected")
 	assert.Equal(t, message, queMsg.Message, "queueMessage Message is not as expected")
 
-	queMsg, err = rsmq.ReceiveMessage(qname, UnsetVt)
-	assert.Nil(t, err, "error is not nil on receiving a message from empty queue")
-	assert.Nil(t, queMsg, "queueMessage is not nil on receiving a message from empty queue")
+	t.Run("no error when the queue is empty", func(t *testing.T) {
+		queMsg, err = rsmq.ReceiveMessage(qname, UnsetVt)
+		assert.Nil(t, err, "error is not nil on receiving a message from empty queue")
+		assert.Nil(t, queMsg, "queueMessage is not nil on receiving a message from empty queue")
+	})
 
-	queMsg, err = rsmq.ReceiveMessage("non-existing", UnsetVt)
-	assert.NotNil(t, err, "error is nil on receiving the message from non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
-	assert.Empty(t, queMsg, "queueMessage is not empty on receiving the message from non-existing queue")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		queMsg, err = rsmq.ReceiveMessage("non-existing", UnsetVt)
+		assert.NotNil(t, err, "error is nil on receiving the message from non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+		assert.Empty(t, queMsg, "queueMessage is not empty on receiving the message from non-existing queue")
+	})
 
-	queMsg, err = rsmq.ReceiveMessage("it is invalid queue name", UnsetVt)
-	assert.NotNil(t, err, "error is nil on receiving the message from the queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
-	assert.Empty(t, queMsg, "queueMessage is not empty on receiving the message from the queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		queMsg, err = rsmq.ReceiveMessage("it is invalid queue name", UnsetVt)
+		assert.NotNil(t, err, "error is nil on receiving the message from the queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+		assert.Empty(t, queMsg, "queueMessage is not empty on receiving the message from the queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_PopMessage(t *testing.T) {
@@ -349,19 +379,25 @@ func TestRedisSMQ_PopMessage(t *testing.T) {
 	assert.Equal(t, id, queMsg.ID, "queueMessage ID is not as expected")
 	assert.Equal(t, message, queMsg.Message, "queueMessage Message is not as expected")
 
-	queMsg, err = rsmq.PopMessage(qname)
-	assert.Nil(t, err, "error is not nil on pop a message from empty queue")
-	assert.Nil(t, queMsg, "queueMessage is not nil on pop a message from empty queue")
+	t.Run("no error when the queue is empty", func(t *testing.T) {
+		queMsg, err = rsmq.PopMessage(qname)
+		assert.Nil(t, err, "error is not nil on pop a message from empty queue")
+		assert.Nil(t, queMsg, "queueMessage is not nil on pop a message from empty queue")
+	})
 
-	queMsg, err = rsmq.PopMessage("non-existing")
-	assert.NotNil(t, err, "error is nil on pop the message from non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
-	assert.Empty(t, queMsg, "queueMessage is not empty on pop the message from non-existing queue")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		queMsg, err = rsmq.PopMessage("non-existing")
+		assert.NotNil(t, err, "error is nil on pop the message from non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+		assert.Empty(t, queMsg, "queueMessage is not empty on pop the message from non-existing queue")
+	})
 
-	queMsg, err = rsmq.PopMessage("it is invalid queue name")
-	assert.NotNil(t, err, "error is nil on pop the message from the queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
-	assert.Empty(t, queMsg, "queueMessage is not empty on pop the message from the queue with invalid name")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		queMsg, err = rsmq.PopMessage("it is invalid queue name")
+		assert.NotNil(t, err, "error is nil on pop the message from the queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+		assert.Empty(t, queMsg, "queueMessage is not empty on pop the message from the queue with invalid name")
+	})
 }
 
 func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
@@ -388,17 +424,23 @@ func TestRedisSMQ_ChangeMessageVisibility(t *testing.T) {
 	assert.Equal(t, id, queMsg.ID, "queueMessage ID is not as expected")
 	assert.Equal(t, message, queMsg.Message, "queueMessage Message is not as expected")
 
-	err = rsmq.ChangeMessageVisibility(qname, id, UnsetVt)
-	assert.NotNil(t, err, "error is nil on changing the visibility of message of non-existing message")
-	assert.Equal(t, ErrMessageNotFound, err, "error is not as expected")
+	t.Run("error when the message does not exist", func(t *testing.T) {
+		err = rsmq.ChangeMessageVisibility(qname, id, UnsetVt)
+		assert.NotNil(t, err, "error is nil on changing the visibility of message of non-existing message")
+		assert.Equal(t, ErrMessageNotFound, err, "error is not as expected")
+	})
 
-	err = rsmq.ChangeMessageVisibility("non-existing", id, UnsetVt)
-	assert.NotNil(t, err, "error is nil on changing the visibility of a message in non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		err = rsmq.ChangeMessageVisibility("non-existing", id, UnsetVt)
+		assert.NotNil(t, err, "error is nil on changing the visibility of a message in non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	})
 
-	err = rsmq.ChangeMessageVisibility("it is invalid queue name", id, UnsetVt)
-	assert.NotNil(t, err, "error is nil on changing the visibility of a message in the queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		err = rsmq.ChangeMessageVisibility("it is invalid queue name", id, UnsetVt)
+		assert.NotNil(t, err, "error is nil on changing the visibility of a message in the queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	})
 }
 
 func TestRedisSMQ_DeleteMessage(t *testing.T) {
@@ -422,15 +464,21 @@ func TestRedisSMQ_DeleteMessage(t *testing.T) {
 	assert.Nil(t, err, "error is not nil on receiving a message from empty queue")
 	assert.Nil(t, queMsg, "queueMessage is not nil on receiving a message from empty queue")
 
-	err = rsmq.DeleteMessage(qname, id)
-	assert.NotNil(t, err, "error is nil on deleting non-existing message")
-	assert.Equal(t, ErrMessageNotFound, err, "error is not as expected")
+	t.Run("error when the message does not exist", func(t *testing.T) {
+		err = rsmq.DeleteMessage(qname, id)
+		assert.NotNil(t, err, "error is nil on deleting non-existing message")
+		assert.Equal(t, ErrMessageNotFound, err, "error is not as expected")
+	})
 
-	err = rsmq.DeleteMessage("non-existing", id)
-	assert.NotNil(t, err, "error is nil on deleting a message in non-existing queue")
-	assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	t.Run("error when the queue does not exist", func(t *testing.T) {
+		err = rsmq.DeleteMessage("non-existing", id)
+		assert.NotNil(t, err, "error is nil on deleting a message in non-existing queue")
+		assert.Equal(t, ErrQueueNotFound, err, "error is as expected")
+	})
 
-	err = rsmq.DeleteMessage("it is invalid queue name", id)
-	assert.NotNil(t, err, "error is nil on deleting a message in the queue with invalid name")
-	assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	t.Run("error when the queue name is not valid", func(t *testing.T) {
+		err = rsmq.DeleteMessage("it is invalid queue name", id)
+		assert.NotNil(t, err, "error is nil on deleting a message in the queue with invalid name")
+		assert.Equal(t, ErrInvalidQname, err, "error is as expected")
+	})
 }
