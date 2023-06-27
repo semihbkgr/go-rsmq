@@ -171,18 +171,10 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 	if hmGetValues[0] == nil || hmGetValues[1] == nil || hmGetValues[2] == nil {
 		return nil, ErrQueueNotFound
 	}
-	vt, err := toUnsigned[uint](hmGetValues[0])
-	if err != nil {
-		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
-	}
-	delay, err := toUnsigned[uint](hmGetValues[1])
-	if err != nil {
-		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
-	}
-	maxsize, err := toSigned[int](hmGetValues[2])
-	if err != nil {
-		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
-	}
+
+	vt := convertToUnsigned[uint](hmGetValues[0])
+	delay := convertToUnsigned[uint](hmGetValues[1])
+	maxsize := convertToSigned[int](hmGetValues[2])
 
 	t := timeCmd.Val()
 
@@ -229,30 +221,14 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 
 	hmGetValues := hmGetSliceCmd.Val()
 
-	vt, err := toUnsigned[uint](hmGetValues[0])
-	if err != nil {
-		return nil, errors.Wrapf(err, "visibility timeout: %v", hmGetValues[0])
-	}
-	delay, err := toUnsigned[uint](hmGetValues[1])
-	if err != nil {
-		return nil, errors.Wrapf(err, "delay: %v", hmGetValues[1])
-	}
-	maxsize, err := toSigned[int](hmGetValues[2])
-	if err != nil {
-		return nil, errors.Wrapf(err, "max size: %v", hmGetValues[2])
-	}
-	totalRecv := toUnsignedOrDef[uint64](hmGetValues[3], 0)
+	vt := convertToUnsigned[uint](hmGetValues[0])
+	delay := convertToUnsigned[uint](hmGetValues[1])
+	maxsize := convertToSigned[int](hmGetValues[2])
+	totalRecv := convertStringToUnsigned[uint64](hmGetValues[3], 0)
+	totalSent := convertStringToUnsigned[uint64](hmGetValues[4], 0)
+	created := convertToUnsigned[uint64](hmGetValues[5])
+	modified := convertToUnsigned[uint64](hmGetValues[6])
 
-	totalSent := toUnsignedOrDef[uint64](hmGetValues[4], 0)
-
-	created, err := toUnsigned[uint64](hmGetValues[5])
-	if err != nil {
-		return nil, errors.Wrapf(err, "created: %v", hmGetValues[5])
-	}
-	modified, err := toUnsigned[uint64](hmGetValues[6])
-	if err != nil {
-		return nil, errors.Wrapf(err, "modified: %v", hmGetValues[6])
-	}
 	msgs := uint64(zCardIntCmd.Val())
 	hiddenMsgs := uint64(zCountIntCmd.Val())
 
@@ -442,25 +418,13 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 	if len(vals) == 0 {
 		return nil, nil
 	}
-	id, err := toString(vals[0])
-	if err != nil {
-		return nil, errors.Wrapf(err, "id: %v", vals[0])
-	}
-	message, err := toString(vals[1])
-	if err != nil {
-		return nil, errors.Wrapf(err, "message: %v", vals[1])
-	}
-	rc, err := toUnsigned[uint64](vals[2])
-	if err != nil {
-		return nil, errors.Wrapf(err, "received count: %v", vals[2])
-	}
-	fr, err := toSigned[int64](vals[3])
-	if err != nil {
-		return nil, errors.Wrapf(err, "first received time: %v", vals[3])
-	}
+	id := vals[0].(string)
+	message := vals[1].(string)
+	rc := convertToUnsigned[uint64](vals[2])
+	fr := convertToSigned[int64](vals[3])
 	sent, err := strconv.ParseInt(id[0:10], 36, 64)
 	if err != nil {
-		return nil, errors.Wrapf(err, "sent time: %v", vals[4])
+		panic(err)
 	}
 
 	return &QueueMessage{
