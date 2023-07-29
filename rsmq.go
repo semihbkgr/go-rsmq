@@ -1,12 +1,12 @@
 package rsmq
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/pkg/errors"
 )
 
 // Unset values are the special values to refer default values of the attributes
