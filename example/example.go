@@ -1,15 +1,15 @@
-package rsmq_test
+package example
 
 import (
 	"fmt"
-	"github.com/go-redis/redis"
-	"github.com/semihbkgr/go-rsmq"
 	"strconv"
 	"time"
+
+	"github.com/go-redis/redis"
+	"github.com/semihbkgr/go-rsmq"
 )
 
-func Example_producer_consumer() {
-
+func exampleProducerConsumer() {
 	ns := "example"
 	qname := "queue"
 
@@ -46,5 +46,4 @@ func Example_producer_consumer() {
 			}
 		}
 	}
-
 }

@@ -172,9 +172,9 @@ func (rsmq *RedisSMQ) getQueue(qname string, uid bool) (*queueDef, error) {
 		return nil, ErrQueueNotFound
 	}
 
-	vt := convertToUnsigned[uint](hmGetValues[0])
-	delay := convertToUnsigned[uint](hmGetValues[1])
-	maxsize := convertToSigned[int](hmGetValues[2])
+	vt := convertStringToUint[uint](hmGetValues[0])
+	delay := convertStringToUint[uint](hmGetValues[1])
+	maxsize := convertStringToInt[int](hmGetValues[2])
 
 	t := timeCmd.Val()
 
@@ -221,13 +221,13 @@ func (rsmq *RedisSMQ) GetQueueAttributes(qname string) (*QueueAttributes, error)
 
 	hmGetValues := hmGetSliceCmd.Val()
 
-	vt := convertToUnsigned[uint](hmGetValues[0])
-	delay := convertToUnsigned[uint](hmGetValues[1])
-	maxsize := convertToSigned[int](hmGetValues[2])
-	totalRecv := convertStringToUnsigned[uint64](hmGetValues[3], 0)
-	totalSent := convertStringToUnsigned[uint64](hmGetValues[4], 0)
-	created := convertToUnsigned[uint64](hmGetValues[5])
-	modified := convertToUnsigned[uint64](hmGetValues[6])
+	vt := convertStringToUint[uint](hmGetValues[0])
+	delay := convertStringToUint[uint](hmGetValues[1])
+	maxsize := convertStringToInt[int](hmGetValues[2])
+	totalRecv := convertStringToUnsignedOrDefault[uint64](hmGetValues[3], 0)
+	totalSent := convertStringToUnsignedOrDefault[uint64](hmGetValues[4], 0)
+	created := convertStringToUint[uint64](hmGetValues[5])
+	modified := convertStringToUint[uint64](hmGetValues[6])
 
 	msgs := uint64(zCardIntCmd.Val())
 	hiddenMsgs := uint64(zCountIntCmd.Val())
@@ -420,8 +420,8 @@ func (rsmq *RedisSMQ) createQueueMessage(cmd *redis.Cmd) (*QueueMessage, error) 
 	}
 	id := vals[0].(string)
 	message := vals[1].(string)
-	rc := convertToUnsigned[uint64](vals[2])
-	fr := convertToSigned[int64](vals[3])
+	rc := convertIntToUint(vals[2])
+	fr := convertStringToInt[int64](vals[3])
 	sent, err := strconv.ParseInt(id[0:10], 36, 64)
 	if err != nil {
 		panic(err)

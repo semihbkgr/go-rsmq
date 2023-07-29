@@ -1,15 +1,15 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/semihbkgr/go-rsmq.svg)](https://pkg.go.dev/github.com/semihbkgr/go-rsmq)
-![ci workflow](https://github.com/semihbkgr/go-rsmq/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/SemihBKGR/go-rsmq/branch/master/graph/badge.svg?token=IVOQ6PLNHM)](https://codecov.io/gh/SemihBKGR/go-rsmq)
-
 # go-rsmq
+
+[![CI workflow](https://github.com/semihbkgr/go-rsmq/actions/workflows/ci.yaml/badge.svg)](https://github.com/semihbkgr/go-rsmq/actions/workflows/ci.yaml)
+[![Codecov](https://codecov.io/gh/SemihBKGR/go-rsmq/branch/master/graph/badge.svg?token=IVOQ6PLNHM)](https://codecov.io/gh/SemihBKGR/go-rsmq)
+[![Go Reference](https://pkg.go.dev/badge/github.com/semihbkgr/go-rsmq.svg)](https://pkg.go.dev/github.com/semihbkgr/go-rsmq)
 
 A lightweight message queue for Go that requires no dedicated queue server. Just a Redis server.
 
 Go implementation of https://github.com/smrchy/rsmq.
 
 ```shell
-go get github.com/semihbkgr/go-rsmq
+$ go get github.com/semihbkgr/go-rsmq
 ```
 
 ## Redis Simple Message Queue
@@ -50,10 +50,10 @@ if msg == nil {
 
 ```
 
-[Producer/Consumer example](./example_test.go)
+[Producer/Consumer example](./example/example.go)
 
 ## Implementation Notes
 
-All details about the queue are [here](https://github.com/smrchy/rsmq/blob/master/README.md).
+All details about the queue implementation are in [here](https://github.com/smrchy/rsmq/blob/master/README.md).
 
-It follows all naming conventions of javascript implementation.
+go-rsmq follows all the naming conventions of javascript implementation.

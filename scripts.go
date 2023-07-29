@@ -76,7 +76,6 @@ return o`
 // KEYS[1]: the zset key
 // KEYS[2]: the message id
 //
-//
 // * Find the message id
 // * Set the new timer
 //
