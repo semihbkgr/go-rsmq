@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.26.0
 )
 
